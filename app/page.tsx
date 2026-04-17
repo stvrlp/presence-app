@@ -111,6 +111,12 @@ function rowClass(status: DisplayStatus): string {
   }
 }
 
+const GREEK_MONTHS = [
+  'Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος',
+  'Μάιος','Ιούνιος','Ιούλιος','Αύγουστος',
+  'Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος',
+];
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PresencePage() {
@@ -134,6 +140,9 @@ export default function PresencePage() {
 
   // Delete loading state per row
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Monthly export in-flight guard
+  const [monthlyExporting, setMonthlyExporting] = useState(false);
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
@@ -458,10 +467,14 @@ export default function PresencePage() {
     const monthStr = `${year}-${String(month).padStart(2, '0')}`;
     const today = toLocalDateString(now);
 
+    setMonthlyExporting(true);
     try {
       const res = await fetch(`/api/export/monthly?month=${monthStr}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? 'Σφάλμα εξαγωγής');
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Σφάλμα εξαγωγής');
 
       const XLSX = await import('xlsx');
 
@@ -471,7 +484,7 @@ export default function PresencePage() {
         dates.push(`${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
       }
 
-      const STATUS_CODE: Record<string, string> = {
+      const STATUS_CODE: Record<ActionType, string> = {
         PRESENT:  '1',
         LEAVE:    'A',
         SICK:     'ΑΓ',
@@ -509,18 +522,12 @@ export default function PresencePage() {
             row[colHeader] = STATUS_CODE[empAction.action] ?? '';
           } else {
             const dayAtt: AttEntry[] = data.attendance[dateStr] ?? [];
-            row[colHeader] = dayAtt.some((a) => a.code === emp.code) ? '1' : '';
+            row[colHeader] = dayAtt.some((a) => a.code === emp.code) ? STATUS_CODE.PRESENT : '';
           }
         }
 
         return row;
       });
-
-      const GREEK_MONTHS = [
-        'Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος',
-        'Μάιος','Ιούνιος','Ιούλιος','Αύγουστος',
-        'Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος',
-      ];
 
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
@@ -545,6 +552,8 @@ export default function PresencePage() {
         description: err instanceof Error ? err.message : 'Δεν ήταν δυνατή η λήψη του αρχείου',
         variant: 'destructive',
       });
+    } finally {
+      setMonthlyExporting(false);
     }
   }
 
@@ -636,7 +645,7 @@ export default function PresencePage() {
             <Button
               variant="outline"
               onClick={handleMonthlyExport}
-              disabled={loading}
+              disabled={loading || monthlyExporting}
             >
               <Download className="h-4 w-4 mr-2" />
               Εξαγωγή Μηνός
