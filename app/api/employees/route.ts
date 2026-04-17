@@ -55,7 +55,8 @@ export async function GET(req: NextRequest) {
         e.[FRDATE]     AS frDate
       FROM [PYLON].[dbo].[vSEM_EMPS] e
       LEFT JOIN [PYLON].[dbo].[TMIMATA_apasx] t ON e.[TMHMA] = t.[TMHMA]
-      WHERE e.[HRDATE] <= @targetDate
+      WHERE e.[ISACTIVE] = 1
+        AND e.[HRDATE] <= @targetDate
         AND (e.[FRDATE] IS NULL OR e.[FRDATE] >= @targetDate)
         ${deptFilter}
       ORDER BY e.[SURNAME], e.[NAME]
