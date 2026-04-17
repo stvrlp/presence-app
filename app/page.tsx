@@ -6,6 +6,7 @@ import { SummaryBar } from '@/components/SummaryBar';
 import { ActionDialog } from '@/components/ActionDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -143,6 +144,10 @@ export default function PresencePage() {
 
   // Monthly export in-flight guard
   const [monthlyExporting, setMonthlyExporting] = useState(false);
+
+  // Mass actions
+  const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
+  const [massActioning, setMassActioning] = useState(false);
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
@@ -297,6 +302,10 @@ export default function PresencePage() {
     fetchData(selectedDate);
   }, [selectedDate, fetchData]);
 
+  useEffect(() => {
+    setSelectedCodes(new Set());
+  }, [selectedDate, activeTab]);
+
   // ── Derived ──────────────────────────────────────────────────────────────
 
   const departments = useMemo(() => {
@@ -411,6 +420,39 @@ export default function PresencePage() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  async function handleMassAction(action: ActionType) {
+    setMassActioning(true);
+    const codes = Array.from(selectedCodes);
+
+    const results = await Promise.allSettled(
+      codes.map((employeeCode) =>
+        fetch('/api/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employeeCode, date: selectedDate, action }),
+        }).then((r) => {
+          if (!r.ok) throw new Error();
+        })
+      )
+    );
+
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+    const failed    = results.filter((r) => r.status === 'rejected').length;
+
+    if (failed === 0) {
+      toast({ title: `Ενέργεια εφαρμόστηκε σε ${succeeded} εργαζόμενους` });
+    } else {
+      toast({
+        title: `${succeeded} επιτυχίες, ${failed} αποτυχίες`,
+        variant: 'destructive',
+      });
+    }
+
+    setSelectedCodes(new Set());
+    setMassActioning(false);
+    fetchData(selectedDate, true);
   }
 
   // ── Excel export ─────────────────────────────────────────────────────────
@@ -648,7 +690,7 @@ export default function PresencePage() {
               disabled={loading || monthlyExporting}
             >
               <Download className="h-4 w-4 mr-2" />
-              Εξαγωγή Μηνός
+              Εξαγωγή Μήνα
             </Button>
             <Button
               variant="outline"
