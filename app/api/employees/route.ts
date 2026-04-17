@@ -1,6 +1,7 @@
 /**
- * GET /api/employees
- * Returns active employees from ERP. ADMIN sees all; USER sees their departments only.
+ * GET /api/employees?date=YYYY-MM-DD
+ * Returns employees active on the given date from ERP.
+ * ADMIN sees all; USER sees their departments only.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { getPool } from '@/lib/db';
@@ -12,13 +13,23 @@ export async function GET(req: NextRequest) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'Μη εξουσιοδοτημένος' }, { status: 401 });
 
+  const { searchParams } = new URL(req.url);
+  const dateParam = searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    return NextResponse.json(
+      { error: 'Απαιτείται παράμετρος date σε μορφή YYYY-MM-DD' },
+      { status: 400 }
+    );
+  }
+
   try {
     const pool = await getPool();
     const request = pool.request();
+    request.input('targetDate', sql.Date, new Date(dateParam));
 
     let deptFilter = '';
     if (session.role === 'USER' && session.departments.length > 0) {
-      // Parameterised IN list
       const placeholders = session.departments
         .map((_, i) => `@dept${i}`)
         .join(', ');
@@ -27,23 +38,25 @@ export async function GET(req: NextRequest) {
       });
       deptFilter = `AND e.[TMHMA] IN (${placeholders})`;
     } else if (session.role === 'USER' && session.departments.length === 0) {
-      // USER with no departments assigned — return empty
       return NextResponse.json({ employees: [] });
     }
 
     const result = await request.query(`
       SELECT
-        e.[ID_EMP]    AS id_emp,
-        e.[SURNAME]   AS surname,
-        e.[NAME]      AS name,
-        e.[CODE]      AS code,
-        e.[ISACTIVE]  AS isActive,
-        t.[DESCR]     AS department,
+        e.[ID_EMP]     AS id_emp,
+        e.[SURNAME]    AS surname,
+        e.[NAME]       AS name,
+        e.[CODE]       AS code,
+        e.[ISACTIVE]   AS isActive,
+        t.[DESCR]      AS department,
         e.[COD_YPOKAT] AS subCategory,
-        e.[HRDATE]    AS hrDate
+        e.[HRDATE]     AS hrDate,
+        e.[FRDATE]     AS frDate
       FROM [PYLON].[dbo].[vSEM_EMPS] e
       LEFT JOIN [PYLON].[dbo].[TMIMATA_apasx] t ON e.[TMHMA] = t.[TMHMA]
-      WHERE e.[ISACTIVE] = 1 ${deptFilter}
+      WHERE e.[HRDATE] <= @targetDate
+        AND (e.[FRDATE] IS NULL OR e.[FRDATE] >= @targetDate)
+        ${deptFilter}
       ORDER BY e.[SURNAME], e.[NAME]
     `);
 
