@@ -348,6 +348,10 @@ export default function PresencePage() {
 
   const filteredRows = activeTab === 'presences' ? presenceRows : absenceRows;
 
+  const allVisibleSelected =
+    filteredRows.length > 0 && filteredRows.every((r) => selectedCodes.has(r.code));
+  const someSelected = filteredRows.some((r) => selectedCodes.has(r.code));
+
   const summary = useMemo<StatusSummary>(() => {
     let present = 0, leave = 0, sick = 0, absent = 0, remote = 0, dayoff = 0, unknown = 0;
     for (const r of filteredRows) {
@@ -707,6 +711,38 @@ export default function PresencePage() {
           </div>
         </div>
 
+        {/* ── Mass action bar ──────────────────────────────────────────────── */}
+        {selectedCodes.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/50 px-4 py-2">
+            <span className="text-sm font-medium text-muted-foreground">
+              {selectedCodes.size} επιλεγμένοι
+            </span>
+            <div className="ml-auto flex flex-wrap gap-2">
+              {(
+                [
+                  ['PRESENT',  'Παρών'],
+                  ['LEAVE',    'Άδεια'],
+                  ['SICK',     'Ασθένεια'],
+                  ['DAYOFF',   'Ρεπό'],
+                  ['REMOTE',   'Τηλεργασία'],
+                  ['ABSENT',   'Απουσία'],
+                  ['REJECTED', 'Απόρριψη'],
+                ] as [ActionType, string][]
+              ).map(([actionType, label]) => (
+                <Button
+                  key={actionType}
+                  variant="outline"
+                  size="sm"
+                  disabled={massActioning}
+                  onClick={() => handleMassAction(actionType)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── Summary bar ─────────────────────────────────────────────── */}
         {!loading && rows.length > 0 && (
           <SummaryBar summary={summary} />
@@ -717,6 +753,18 @@ export default function PresencePage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allVisibleSelected ? true : someSelected ? 'indeterminate' : false}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedCodes(new Set(filteredRows.map((r) => r.code)));
+                      } else {
+                        setSelectedCodes(new Set());
+                      }
+                    }}
+                  />
+                </TableHead>
                 <TableHead className="w-24">Κωδικός</TableHead>
                 <TableHead>Επώνυμο</TableHead>
                 <TableHead>Όνομα</TableHead>
@@ -736,7 +784,7 @@ export default function PresencePage() {
               {loading ? (
                 Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: isPresenceTab ? 8 : 6 }).map((_, j) => (
+                    {Array.from({ length: isPresenceTab ? 9 : 7 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-4 w-full" />
                       </TableCell>
@@ -746,7 +794,7 @@ export default function PresencePage() {
               ) : filteredRows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={isPresenceTab ? 8 : 6}
+                    colSpan={isPresenceTab ? 9 : 7}
                     className="text-center py-12 text-muted-foreground"
                   >
                     {rows.length === 0
@@ -762,7 +810,20 @@ export default function PresencePage() {
                       key={`${row.code}-${row.date}`}
                       className={`${rowClass(row.status)} hover:brightness-95 transition-all`}
                     >
-                      <TableCell className="font-mono text-xs text-muted-foreground">
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedCodes.has(row.code)}
+                          onCheckedChange={(checked) => {
+                            setSelectedCodes((prev) => {
+                              const next = new Set(prev);
+                              if (checked) next.add(row.code);
+                              else next.delete(row.code);
+                              return next;
+                            });
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
                         {row.code}
                       </TableCell>
                       <TableCell className="font-medium">{row.surname}</TableCell>
