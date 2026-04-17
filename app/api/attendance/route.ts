@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
         FROM [PYLON].[dbo].[io_10days] i
         WHERE i.[Expr3] >= @dayStart AND i.[Expr3] < @dayEnd
           AND i.[Expr4] IN (1, 2)
-        GROUP BY i.[Expr2]
+        GROUP BY i.[Expr2], CAST(i.[Expr3] AS DATE)
       ) x
       INNER JOIN [PYLON].[dbo].[SS_vEMP_CARD] e ON e.[CARD_CODE] = x.[CARD_CODE]
       LEFT JOIN [PYLON].[dbo].[TMIMATA_apasx] t ON e.[TMHMA] = t.[TMHMA]
