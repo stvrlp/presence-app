@@ -65,7 +65,10 @@ export async function GET(req: NextRequest) {
           AND i.[Expr4] IN (1, 2)
         GROUP BY i.[Expr2], CAST(i.[Expr3] AS DATE)
       ) x
-      INNER JOIN [PYLON].[dbo].[SS_vEMP_CARD] e ON e.[CARD_CODE] = x.[CARD_CODE]
+      INNER JOIN [PYLON].[dbo].[CARD_CODES] cc ON cc.[CARD_CODE] = x.[CARD_CODE]
+        AND cc.[FROM_DATE] <= @dayEnd
+        AND (cc.[TO_DATE] IS NULL OR cc.[TO_DATE] >= @dayStart)
+      INNER JOIN [PYLON].[dbo].[vSEM_EMPS] e ON e.[ID_EMP] = cc.[ID_EMP]
       LEFT JOIN [PYLON].[dbo].[TMIMATA_apasx] t ON e.[TMHMA] = t.[TMHMA]
       WHERE 1=1 ${deptFilter}
       ORDER BY e.[SURNAME], e.[NAME]
