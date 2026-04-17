@@ -495,7 +495,7 @@ export default function PresencePage() {
       };
 
       type EmpRow = { code: string; surname: string; name: string; department: string | null };
-      type ActEntry = { employeeCode: string; action: string };
+      type ActEntry = { employeeCode: string; action: ActionType };
       type AttEntry = { code: string };
 
       const rows = (data.employees as EmpRow[]).map((emp) => {
