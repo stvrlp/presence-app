@@ -361,7 +361,7 @@ export default function PresencePage() {
     return baseFiltered.filter(
       (r) =>
         !r.hasCardEntry &&
-        !(dow === 0 && !r.actionId && !r.hasCardEntry)
+        !(dow === 0 && !r.actionId)
     );
   }, [baseFiltered, selectedDate]);
 
