@@ -50,7 +50,7 @@ Unknown descriptions fall back to `{ actionType: 'ABSENT', excelCode: '0' }`.
 ### `PresenceRow` — new optional field (`lib/types.ts`)
 
 ```ts
-leaveRequest?: { description: string; excelCode: string }
+leaveRequest?: { description: string; excelCode: string; actionType: ActionType } | null
 ```
 
 ### Merge priority in `page.tsx`
