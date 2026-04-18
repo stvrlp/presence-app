@@ -26,6 +26,9 @@ export interface PresenceRow {
   actionNote?: string | null;
   managerId?: string | null;
 
+  // ERP leave request for this employee on this date (if any)
+  leaveRequest?: { description: string; excelCode: string; actionType: ActionType } | null;
+
   // Computed display status
   status: ActionType | 'UNKNOWN'; // 'UNKNOWN' = no card + no action yet
 }
