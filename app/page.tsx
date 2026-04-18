@@ -169,21 +169,24 @@ export default function PresencePage() {
       else setRefreshing(true);
 
       try {
-        const [empRes, attRes, actRes] = await Promise.all([
+        const [empRes, attRes, actRes, leaveRes] = await Promise.all([
           fetch(`/api/employees?date=${date}`),
           fetch(`/api/attendance?date=${date}`),
           fetch(`/api/actions?date=${date}`),
+          fetch(`/api/leaves?date=${date}`),
         ]);
 
-        const [empData, attData, actData] = await Promise.all([
+        const [empData, attData, actData, leaveData] = await Promise.all([
           empRes.json(),
           attRes.json(),
           actRes.json(),
+          leaveRes.json(),
         ]);
 
         if (!empRes.ok) throw new Error(empData.error ?? 'Σφάλμα φόρτωσης εργαζομένων');
         if (!attRes.ok) throw new Error(attData.error ?? 'Σφάλμα φόρτωσης παρουσιών');
         if (!actRes.ok) throw new Error(actData.error ?? 'Σφάλμα φόρτωσης ενεργειών');
+        // leave errors are non-fatal — we continue without leave data
 
         type AttEntry = {
           code: string;
@@ -210,6 +213,17 @@ export default function PresencePage() {
           actionMap.set(act.employeeCode, act);
         }
 
+        type LeaveRecord = {
+          employeeCode: string;
+          description: string;
+          excelCode: string;
+          actionType: ActionType;
+        };
+        const leaveMap = new Map<string, LeaveRecord>();
+        for (const leave of (leaveData?.leaves ?? []) as LeaveRecord[]) {
+          leaveMap.set(leave.employeeCode, leave);
+        }
+
         type EmpRecord = {
           code: string;
           surname: string;
@@ -225,14 +239,17 @@ export default function PresencePage() {
 
         const dayOfWeek = new Date(date).getDay(); // 0 = Sunday, 6 = Saturday
         const merged: PresenceRow[] = Array.from(empMap.values()).map((emp) => {
-          const card = cardMap.get(emp.code);
-          const act  = actionMap.get(emp.code);
+          const card  = cardMap.get(emp.code);
+          const act   = actionMap.get(emp.code);
+          const leave = leaveMap.get(emp.code);
 
           let status: PresenceRow['status'];
           if (act) {
             status = act.action;
           } else if (card) {
             status = 'PRESENT';
+          } else if (leave) {
+            status = leave.actionType;
           } else if (dayOfWeek === 0 || dayOfWeek === 6) {
             status = 'DAYOFF';
           } else {
@@ -248,10 +265,13 @@ export default function PresencePage() {
             timeIn:  card ? formatTime(card.timeIn)  : null,
             timeOut: card ? formatTime(card.timeOut) : null,
             date,
-            actionId:  act?.id ?? null,
-            action:    act?.action ?? null,
+            actionId:   act?.id ?? null,
+            action:     act?.action ?? null,
             actionNote: act?.note ?? null,
             managerId:  act?.managerId ?? null,
+            leaveRequest: leave
+              ? { description: leave.description, excelCode: leave.excelCode, actionType: leave.actionType }
+              : null,
             status,
           };
         });
@@ -260,6 +280,7 @@ export default function PresencePage() {
         for (const [code, card] of Array.from(cardMap.entries())) {
           if (!merged.find((r) => r.code === code)) {
             const act = actionMap.get(code);
+            const leave = leaveMap.get(code);
             merged.push({
               code,
               surname: card.surname,
@@ -269,10 +290,13 @@ export default function PresencePage() {
               timeIn:  formatTime(card.timeIn),
               timeOut: formatTime(card.timeOut),
               date,
-              actionId:  act?.id ?? null,
-              action:    act?.action ?? null,
+              actionId:   act?.id ?? null,
+              action:     act?.action ?? null,
               actionNote: act?.note ?? null,
               managerId:  act?.managerId ?? null,
+              leaveRequest: leave
+                ? { description: leave.description, excelCode: leave.excelCode, actionType: leave.actionType }
+                : null,
               status: act ? act.action : 'PRESENT',
             });
           }
@@ -428,7 +452,7 @@ export default function PresencePage() {
                 action: null,
                 actionNote: null,
                 managerId: null,
-                status: r.hasCardEntry ? 'PRESENT' : 'UNKNOWN',
+                status: r.hasCardEntry ? 'PRESENT' : (r.leaveRequest?.actionType ?? 'UNKNOWN'),
               }
             : r
         )
