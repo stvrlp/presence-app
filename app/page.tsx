@@ -25,6 +25,12 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { formatTime, toLocalDateString } from '@/lib/utils';
 import type { PresenceRow, ActionType, StatusSummary } from '@/lib/types';
 import type { SessionUser } from '@/lib/auth';
@@ -35,6 +41,9 @@ import {
   Pencil,
   Trash2,
   Loader2,
+  ChevronDown,
+  Table2,
+  Calendar,
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -148,6 +157,9 @@ export default function PresencePage() {
   // Mass actions
   const [selectedCodes, setSelectedCodes] = useState<Set<string>>(new Set());
   const [massActioning, setMassActioning] = useState(false);
+
+  // Export primary action
+  const [primaryAction, setPrimaryAction] = useState<'daily' | 'monthly'>('daily');
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
