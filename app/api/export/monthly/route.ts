@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     const leaveRequest = pool.request();
     leaveRequest.input('monthStart', sql.Date, monthStart);
-    leaveRequest.input('monthEndDate', sql.Date, new Date(year, month - 1, new Date(year, month, 0).getDate()));
+    leaveRequest.input('monthEndDate', sql.Date, new Date(year, month, 0));
 
     const [empResult, attResult, dbActions, leaveResult] = await Promise.all([
       empRequest.query(`
@@ -134,16 +134,28 @@ export async function GET(req: NextRequest) {
       actions[act.date].push({ employeeCode: act.employeeCode, action: act.action });
     }
 
+    const employeeCodes = new Set(employees.map((e) => e.code));
+
+    const parseDateLocal = (s: string) => {
+      const [y, m, d] = s.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    };
+
     type LeaveRow = { employeeCode: string; description: string; startDate: Date | string; endDate: Date | string };
     const leaves: Record<string, { employeeCode: string; excelCode: string }[]> = {};
 
     for (const row of leaveResult.recordset as LeaveRow[]) {
+      if (!employeeCodes.has(row.employeeCode)) continue;
       const start = typeof row.startDate === 'string' ? row.startDate.slice(0, 10) : toLocalDateString(row.startDate);
       const end   = typeof row.endDate   === 'string' ? row.endDate.slice(0, 10)   : toLocalDateString(row.endDate);
       const { excelCode } = resolveLeaveType(row.description);
 
-      let cur = new Date(start);
-      const endDate = new Date(end);
+      // Clamp to the queried month so cross-month leaves don't emit out-of-month dates
+      const clampedStart = start < monthStartStr ? monthStartStr : start;
+      const clampedEnd   = end   > monthEndStr   ? monthEndStr   : end;
+
+      let cur = parseDateLocal(clampedStart);
+      const endDate = parseDateLocal(clampedEnd);
       while (cur <= endDate) {
         const dateStr = toLocalDateString(cur);
         if (!leaves[dateStr]) leaves[dateStr] = [];
