@@ -592,6 +592,7 @@ export default function PresencePage() {
       type EmpRow = { code: string; surname: string; name: string; department: string | null };
       type ActEntry = { employeeCode: string; action: ActionType };
       type AttEntry = { code: string };
+      type LeaveEntry = { employeeCode: string; excelCode: string };
 
       const rows = (data.employees as EmpRow[]).map((emp) => {
         const row: Record<string, string> = {
@@ -614,10 +615,18 @@ export default function PresencePage() {
           const empAction = dayActions.find((a) => a.employeeCode === emp.code);
 
           if (empAction) {
+            // Manager-set action — use broad STATUS_CODE (unchanged behaviour)
             row[colHeader] = STATUS_CODE[empAction.action] ?? '';
           } else {
             const dayAtt: AttEntry[] = data.attendance[dateStr] ?? [];
-            row[colHeader] = dayAtt.some((a) => a.code === emp.code) ? STATUS_CODE.PRESENT : '';
+            if (dayAtt.some((a) => a.code === emp.code)) {
+              row[colHeader] = STATUS_CODE.PRESENT;
+            } else {
+              // No card entry — check for ERP leave request (granular code)
+              const dayLeaves: LeaveEntry[] = data.leaves?.[dateStr] ?? [];
+              const empLeave = dayLeaves.find((l) => l.employeeCode === emp.code);
+              row[colHeader] = empLeave ? empLeave.excelCode : '';
+            }
           }
         }
 
