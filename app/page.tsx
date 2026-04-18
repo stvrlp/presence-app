@@ -722,7 +722,8 @@ export default function PresencePage() {
                 <Button
                   variant="default"
                   className="rounded-l-none border-l border-white/20 bg-primary/90 px-2"
-                  disabled={loading}
+                  disabled={loading || monthlyExporting}
+                  aria-label="Επιλογές εξαγωγής"
                 >
                   <ChevronDown className="h-4 w-4" />
                 </Button>
