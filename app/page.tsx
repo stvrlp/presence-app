@@ -703,23 +703,59 @@ export default function PresencePage() {
             </SelectContent>
           </Select>
 
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex">
             <Button
-              variant="outline"
-              onClick={handleMonthlyExport}
-              disabled={loading || monthlyExporting}
+              variant="default"
+              className="rounded-r-none"
+              onClick={primaryAction === 'daily' ? handleExport : handleMonthlyExport}
+              disabled={
+                primaryAction === 'daily'
+                  ? loading || filteredRows.length === 0
+                  : loading || monthlyExporting
+              }
             >
               <Download className="h-4 w-4 mr-2" />
-              Εξαγωγή Μήνα
+              Εξαγωγή
             </Button>
-            <Button
-              variant="outline"
-              onClick={handleExport}
-              disabled={loading || filteredRows.length === 0}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Εξαγωγή σε Excel
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="default"
+                  className="rounded-l-none border-l border-white/20 bg-primary/90 px-2"
+                  disabled={loading}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={loading || filteredRows.length === 0}
+                  onClick={() => {
+                    setPrimaryAction('daily');
+                    handleExport();
+                  }}
+                >
+                  <Table2 className="h-4 w-4 mr-2 text-primary" />
+                  <div>
+                    <div className="font-medium">Ημερήσια λίστα</div>
+                    <div className="text-xs text-muted-foreground">Excel — επιλεγμένη ημερομηνία</div>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={loading || monthlyExporting}
+                  onClick={() => {
+                    setPrimaryAction('monthly');
+                    handleMonthlyExport();
+                  }}
+                >
+                  <Calendar className="h-4 w-4 mr-2 text-primary" />
+                  <div>
+                    <div className="font-medium">Ημερολόγιο μήνα</div>
+                    <div className="text-xs text-muted-foreground">Excel — πλέγμα ημερολογίου</div>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
